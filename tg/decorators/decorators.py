@@ -105,6 +105,9 @@ class expose(object):
         class. This will let the exposed method expose the same template
         as the overridden method template and keep the same hooks and
         validation that the parent method had.
+      allowed_methods
+        Restrict the HTTP verbs that can reach the controller. Requests using
+        other methods raise :class:`tg.exceptions.HTTPMethodNotAllowed`.
 
     The expose decorator registers a number of attributes on the
     decorated function, but does not actually wrap the function the way
@@ -166,6 +169,7 @@ class expose(object):
         custom_format=None,
         render_params=None,
         inherit=False,
+        allowed_methods=None,
     ):
         self.engine = None
         self.template = template
@@ -175,12 +179,14 @@ class expose(object):
         self.render_params = render_params
 
         self.inherit = inherit
+        self.allowed_methods = allowed_methods
         self._func = None
 
     def __call__(self, func):
         self._func = func
         deco = Decoration.get_decoration(func)
         deco._register_exposition(self, self.inherit)
+        deco._register_allowed_methods(self.allowed_methods)
         return func
 
     def _resolve_options(self):

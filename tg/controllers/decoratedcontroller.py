@@ -13,6 +13,7 @@ from crank.util import flatten_arguments, get_params_with_argspec
 
 import tg
 from tg.configuration.utils import TGConfigError
+from tg.exceptions import HTTPMethodNotAllowed
 from tg.flash import flash
 from tg.predicates import NotAuthorizedError, not_anonymous
 from tg.render import render as tg_render
@@ -87,6 +88,9 @@ class DecoratedController(object, metaclass=_DecoratedControllerMeta):
         if not resp_headers.get("Content-Type"):
             resp_headers.pop("Content-Type", None)
 
+        # Enforce limited HTTP Methods in case they were registered
+        self._enforce_allowed_methods(action.decoration, context.request)
+ 
         if remainder:
             remainder = tuple(map(urllib.request.url2pathname, remainder or []))
         else:
@@ -148,6 +152,18 @@ class DecoratedController(object, metaclass=_DecoratedControllerMeta):
         hooks.notify("after_render", args=(response,), controller=action)
 
         return response["response"]
+
+    @staticmethod
+    def _enforce_allowed_methods(decoration, request):
+        if not decoration or not decoration._allowed_methods:
+            return
+
+        method = request.method.upper()
+        if method in decoration._allowed_methods:
+            return
+
+        allow_header = ", ".join(sorted(decoration._allowed_methods))
+        raise HTTPMethodNotAllowed(headers=dict(Allow=allow_header))
 
     @classmethod
     def _perform_validate(cls, controller, params, context):

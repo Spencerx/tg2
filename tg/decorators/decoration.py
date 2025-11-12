@@ -39,6 +39,7 @@ class Decoration(object):
         self.hooks = dict(
             before_validate=[], before_call=[], before_render=[], after_render=[]
         )
+        self._allowed_methods = None
 
     def __repr__(self):  # pragma: no cover
         return "<Decoration %s for %r>" % (id(self), self.controller)
@@ -100,6 +101,10 @@ class Decoration(object):
 
         # Inherit al validators registered on parent.
         self.validations = deco.validations + self.validations
+
+        if deco._allowed_methods:
+            self._allowed_methods = self._allowed_methods or set()
+            self._allowed_methods.update(deco._allowed_methods)
 
     def register_template_engine(
         self, content_type, engine, template, exclude_names, render_params
@@ -291,3 +296,21 @@ class Decoration(object):
 
     def _register_validation(self, validation):
         self.validations.insert(0, validation)
+
+    def _register_allowed_methods(self, methods):
+        if methods is None:
+            return
+
+        if isinstance(methods, str):
+            methods = [methods]
+
+        normalized_methods = {
+            method.strip().upper() for method in methods if method and method.strip()
+        }
+        if not normalized_methods:
+            return
+
+        self._allowed_methods = self._allowed_methods or set()
+        self._allowed_methods.update(normalized_methods)
+        if "GET" in normalized_methods:
+            self._allowed_methods.add("HEAD")
