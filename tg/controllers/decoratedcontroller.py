@@ -90,7 +90,7 @@ class DecoratedController(object, metaclass=_DecoratedControllerMeta):
 
         # Enforce limited HTTP Methods in case they were registered
         self._enforce_allowed_methods(action.decoration, context.request)
- 
+
         if remainder:
             remainder = tuple(map(urllib.request.url2pathname, remainder or []))
         else:
