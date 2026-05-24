@@ -46,7 +46,7 @@ testing = [
     "pytest",
     "pytest-cov",
     "zope.sqlalchemy>=0.4",
-    "repoze.who",
+    "repoze.who>=3.2.0rc1",
     "Genshi>=0.5.1",
     "Mako",
     "WebTest",

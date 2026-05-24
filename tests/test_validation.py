@@ -37,14 +37,14 @@ def teardown_module():
 
 class controller_based_validate(validate):
     def __init__(self, error_handler=None, *args, **kw):
-        self.error_handler = error_handler
-        self.needs_controller = True
-
         class Validators(object):
+            needs_controller = True
             def validate(self, controller, params):
                 return params
 
-        self.validators = Validators()
+        super(controller_based_validate, self).__init__(
+            validators=Validators(), error_handler=error_handler, *args, **kw
+        )
 
 BoolValidator = Convert(asbool)
 IntValidator = Convert(asint, msg="Please enter an integer value")
@@ -233,7 +233,7 @@ class BasicTGController(TGController):
         return 'UHU?'
 
     @expose()
-    @validate(error_handler=hooked_error_handler)
+    @validate({}, error_handler=hooked_error_handler)
     def passthrough_validation(self, uid):
         return str(uid)
 
@@ -242,6 +242,24 @@ class BasicTGController(TGController):
               error_handler=hooked_error_handler)
     def validate_hooked(self, uid):
         return 'HUH'
+
+    @expose('json:')
+    @validate(error_handler=validation_errors_response)
+    def type_hint_validation(self, num: int, name: str = 'default'):
+        """Test type hint based validation"""
+        return dict(num=num, name=name)
+
+    @expose('json:')
+    @validate(error_handler=validation_errors_response)
+    def type_hint_validation_with_error(self, num: int):
+        """Test type hint based validation with error handler"""
+        return dict(num=num)
+
+    @expose('json:')
+    @validate(error_handler=validation_errors_response)
+    def type_hint_optional_validation(self, num: int = 5):
+        """Test type hint based validation with optional parameter"""
+        return dict(num=num)
 
     # Decorate validate_hooked with a controller wrapper
     Decoration.get_decoration(hooked_error_handler)\
@@ -477,10 +495,43 @@ class TestTGController(TestWSGIController):
         assert resp.text == 'ERROR', resp
 
     def test_passthrough_validation(self):
-        # This should actually never happen.
-        # It requires the validator to mess up with TG internals, it's just to provide full coverage.
         resp = self.app.post('/passthrough_validation', {'uid': 5})
         assert resp.text == '5', resp
+
+    def test_type_hint_validation(self):
+        """Test that type hints are used for validation when no validators provided"""
+        resp = self.app.post('/type_hint_validation', {'num': '42', 'name': 'test'})
+        assert resp.json == {'num': 42, 'name': 'test'}
+
+    def test_type_hint_validation_optional_missing(self):
+        """Test that missing optional parameter with type hint uses default"""
+        resp = self.app.post('/type_hint_validation', {'num': '42'})
+        assert resp.json == {'num': 42, 'name': 'default'}
+
+    def test_type_hint_validation_invalid_type(self):
+        """Test that invalid type for parameter with type hint raises error"""
+        resp = self.app.post('/type_hint_validation', {'num': 'not_a_number', 'name': 'test'}, status=412)
+        assert 'num' in resp.json['errors']
+
+    def test_type_hint_validation_with_error_handler(self):
+        """Test type hint validation with error handler"""
+        resp = self.app.post('/type_hint_validation_with_error', {'num': '42'})
+        assert resp.json == {'num': 42}
+
+    def test_type_hint_validation_with_error_handler_fail(self):
+        """Test type hint validation with error handler on failure"""
+        resp = self.app.post('/type_hint_validation_with_error', {'num': 'not_a_number'}, status=412)
+        assert 'num' in resp.json['errors']
+
+    def test_type_hint_optional_validation(self):
+        """Test type hint validation with optional parameter and no value"""
+        resp = self.app.post('/type_hint_optional_validation', {})
+        assert resp.json == {'num': 5}
+
+    def test_type_hint_optional_validation_with_value(self):
+        """Test type hint validation with optional parameter and value"""
+        resp = self.app.post('/type_hint_optional_validation', {'num': '10'})
+        assert resp.json == {'num': 10}
 
     def test_convert_validation(self):
         resp = self.app.post('/post_pow2', {'num': '5'})

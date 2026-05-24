@@ -10,6 +10,7 @@ needed to support these decorators.
 """
 
 import copy
+import inspect
 import logging
 import time
 from functools import partial
@@ -22,11 +23,12 @@ from ..flash import flash
 from ..predicates import NotAuthorizedError
 from ..request_local import request, response, tmpl_context
 from ..support import NoDefault
+from ..support.converters import asbool
 from ..support.paginate import Page
 from ..support.responses import abort, redirect
 from ..util import Bunch
 from ..util.instance_method import default_im_func
-from ..validation import _ValidationIntent
+from ..validation import _ValidationIntent, Convert
 from .decoration import Decoration
 
 log = logging.getLogger(__name__)
@@ -320,7 +322,7 @@ def override_template(view, template):
         )
 
 
-class validate(_ValidationIntent):
+class validate(object):
     """Registers which validators ought to be applied.
 
     If you want to validate the contents of your form,
@@ -329,6 +331,8 @@ class validate(_ValidationIntent):
 
     :param validators: A dictionary of FormEncode/TW2 validators, a :class:`tg.validation.Convert`
                        or any callable that might throw :class:`tg.validation.TGValidationError`.
+                       If not provided and no form is given, type hints from the function signature
+                       will be used to automatically create validators.
     :param error_handler: Function or action that should be used to handle the errors.
     :param form: A TW2 or ToscaWidgets form to validate ( to be provided instead of ``validators`` )
     :param chain_validation: Whenever ``error_handler`` should perform validation too in
@@ -336,20 +340,49 @@ class validate(_ValidationIntent):
 
     The first positional parameter can either be a dictonary of validators,
     a FormEncode schema validator, or a callable which acts like a FormEncode
-    validator.
+    validator. If neither validators nor form are provided, type hints from
+    the function signature will be used to automatically create validators.
     """
 
     def __init__(
         self, validators=None, error_handler=None, form=None, chain_validation=False
     ):
-        super(validate, self).__init__(
-            validators or form, error_handler, chain_validation
-        )
+        self.validators = validators
+        self.error_handler = error_handler
+        self.form = form
+        self.chain_validation = chain_validation
 
     def __call__(self, func):
+        validators = self.validators if self.validators is not None else self.form
+        if validators is None:
+            validators = self._build_validators_from_signature(func)
+
+        intent = _ValidationIntent(validators, self.error_handler, self.chain_validation)
+
         deco = Decoration.get_decoration(func)
-        deco._register_validation(self)
+        deco._register_validation(intent)
         return func
+
+    def _build_validators_from_signature(self, func):
+        """Build {param: Convert(type)} dict from function type hints."""
+        sig = inspect.signature(func)
+        validators = {}
+
+        for param_name, param in sig.parameters.items():
+            if param.annotation is inspect.Parameter.empty:
+                continue
+
+            type_hint = param.annotation
+            converter = asbool if type_hint is bool else type_hint
+
+            if param.default is inspect.Parameter.empty:
+                validators[param_name] = Convert(converter, "Invalid")
+            else:
+                validators[param_name] = Convert(
+                    converter, "Invalid", default=param.default
+                )
+
+        return validators
 
 
 class decode_params(object):

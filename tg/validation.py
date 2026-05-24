@@ -83,7 +83,7 @@ class _ValidationIntent(object):
                     error_dict=errors,
                 )
         elif hasattr(validators, "validate") and getattr(
-            self, "needs_controller", False
+            validators, "needs_controller", False
         ):
             # An object with a "validate" method - call it with the parameters
             validated_params = validators.validate(method, params)
