@@ -28,7 +28,7 @@ from ..support.paginate import Page
 from ..support.responses import abort, redirect
 from ..util import Bunch
 from ..util.instance_method import default_im_func
-from ..validation import _ValidationIntent, Convert
+from ..validation import Convert, _ValidationIntent
 from .decoration import Decoration
 
 log = logging.getLogger(__name__)
