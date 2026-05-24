@@ -93,8 +93,10 @@ class MakoRenderer(RendererFactory):
             output_encoding="utf-8",
             imports=["from markupsafe import escape_silent as escape"],
             package_name=config["package_name"],
-            find_template_file=lambda t: app_globals.dotted_filename_finder.get_dotted_filename(
-                t, template_extension=template_extension
+            find_template_file=lambda t: (
+                app_globals.dotted_filename_finder.get_dotted_filename(
+                    t, template_extension=template_extension
+                )
             ),
             template_extension=template_extension,
             module_directory=compiled_dir,

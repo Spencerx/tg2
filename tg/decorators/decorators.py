@@ -357,7 +357,9 @@ class validate(object):
         if validators is None:
             validators = self._build_validators_from_signature(func)
 
-        intent = _ValidationIntent(validators, self.error_handler, self.chain_validation)
+        intent = _ValidationIntent(
+            validators, self.error_handler, self.chain_validation
+        )
 
         deco = Decoration.get_decoration(func)
         deco._register_validation(intent)
