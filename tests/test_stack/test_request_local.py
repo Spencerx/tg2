@@ -1,4 +1,5 @@
 
+from tg.caching import cached_property
 from tg.request_local import Request, Response
 
 
@@ -29,6 +30,36 @@ class TestRequest(object):
         r = Request({}, headers={'Accept': 'text/html;q=0.5, foo/bar'})
         first_match = r.match_accept(['foo/bar'])
         assert first_match == 'foo/bar', first_match
+
+    def test_state_is_cached_property(self):
+        assert isinstance(Request.state, cached_property)
+
+        r = Request({})
+        assert r.state is r.state
+
+    def test_state_maps_to_tg_environ_keys(self):
+        environ = {'tg.original_response': 'ORIGINAL'}
+        r = Request(environ)
+
+        assert r.state['original_response'] == 'ORIGINAL'
+        r.state['status_code_redirect'] = False
+
+        assert environ['tg.status_code_redirect'] is False
+        assert r.state.get('status_code_redirect') is False
+        assert 'status_code_redirect' in r.state
+        assert r.state.pop('status_code_redirect') is False
+        assert 'tg.status_code_redirect' not in environ
+
+    def test_disable_methods_use_request_state(self):
+        r = Request({})
+
+        r.disable_error_pages()
+        r.disable_auth_challenger()
+
+        assert r.state['status_code_redirect'] is False
+        assert r.environ['tg.status_code_redirect'] is False
+        assert r.environ['tg.wsgi.skip_auth_challenge'] is True
+        assert 'tg.skip_auth_challenge' not in r.environ
 
     def test_signed_cookie(self):
         resp = Response()

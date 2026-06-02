@@ -79,6 +79,11 @@ class Request(WebObRequest):
         """
         return self._response_ext
 
+    @cached_property
+    def state(self):
+        """TG-private per-request runtime state."""
+        return _WSGIRequestState(self.environ)
+
     def match_accept(self, mimetypes):
         return self.accept.best_match(mimetypes)
 
@@ -137,7 +142,7 @@ class Request(WebObRequest):
 
         This will forward your response as is bypassing the :class:`.ErrorPageApplicationWrapper`
         """
-        self.environ["tg.status_code_redirect"] = False
+        self.state["status_code_redirect"] = False
 
     def disable_auth_challenger(self):
         """Disable authentication challenger for current request.
@@ -145,7 +150,31 @@ class Request(WebObRequest):
         This will forward your response as is in case of 401 bypassing any
         repoze.who challenger.
         """
-        self.environ["tg.skip_auth_challenge"] = True
+        self.environ["tg.wsgi.skip_auth_challenge"] = True
+
+
+class _WSGIRequestState(object):
+    """TG-private per-request state backed by WSGI environ."""
+
+    prefix = "tg."
+
+    def __init__(self, environ):
+        self.environ = environ
+
+    def __getitem__(self, key):
+        return self.environ[self.prefix + key]
+
+    def __setitem__(self, key, value):
+        self.environ[self.prefix + key] = value
+
+    def get(self, key, default=None):
+        return self.environ.get(self.prefix + key, default)
+
+    def __contains__(self, key):
+        return self.prefix + key in self.environ
+
+    def pop(self, key, default=None):
+        return self.environ.pop(self.prefix + key, default)
 
 
 class Response(WebObResponse):

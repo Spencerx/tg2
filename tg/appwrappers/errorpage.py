@@ -82,7 +82,8 @@ class ErrorPageApplicationWrapper(ApplicationWrapper):
             resp = context.response
             resp.status_code = 500
 
-        if not environ.get("tg.status_code_redirect", True):
+        request = context.request
+        if not request.state.get("status_code_redirect", True):
             # status_code_redirect disabled per this request
             return resp
 
@@ -97,13 +98,13 @@ class ErrorPageApplicationWrapper(ApplicationWrapper):
         if status_code in self.handle_status_codes and (
             not self.handle_content_types or content_type in self.handle_content_types
         ):
-            environ["tg.original_request"] = context.request.copy()
-            environ["tg.original_response"] = resp
+            request.state["original_request"] = request.copy()
+            request.state["original_response"] = resp
 
             # Reset the response, so the error controller starts
             # with a clean one and can provide the wished response.
-            # The original one will be available in environ as
-            # tg.original_response
+            # The original one will be available as
+            # request.state["original_response"]
             resp_options = context.config.get(
                 "tg.response_options", Response._DEFAULT_RESPONSE_OPTIONS
             )
