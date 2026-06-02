@@ -121,7 +121,7 @@ class _AuthenticationForgerMiddleware(PluggableAuthenticationMiddleware):
 
 
 def turbogears_challenge_decider(environ, status, headers):
-    if "tg.skip_auth_challenge" in environ:
+    if "tg.wsgi.skip_auth_challenge" in environ:
         return None
 
     return default_challenge_decider(environ, status, headers)
