@@ -49,6 +49,7 @@ class TGApp(object):
 
         # Cache some options for use during requests
         self.strict_tmpl_context = self.config["tg.strict_tmpl_context"]
+        self.decode_json_params = self.config.get("decode_json_params", False)
 
         self.resp_options = config.get(
             "tg.response_options", Response._DEFAULT_RESPONSE_OPTIONS
@@ -122,6 +123,7 @@ class TGApp(object):
         req = Request(environ)
         req._fast_setattr("_language", self.lang)
         req._fast_setattr("_response_type", None)
+        req._fast_setattr("_decode_json_params", self.decode_json_params)
 
         resp_options = self.resp_options
         response = Response(

@@ -2,6 +2,7 @@
 from logging import getLogger
 
 from ...configuration import milestones
+from ...support.converters import asbool
 from ..base import (
     BeforeConfigConfigurationAction,
     ConfigurationComponent,
@@ -34,6 +35,7 @@ class DispatchConfigurationComponent(ConfigurationComponent):
         - ``enable_routing_args``: Set routing args in dispatcher state during dispatch and
                                    call ``_setup_wsgiorg_routing_args`` on root controller to
                                    to allow trapping routing arguments.
+        - ``decode_json_params``: Decode application/json object bodies into request params.
 
     Controller wrappers can be registered by using :meth:`.register_controller_wrapper`::
 
@@ -48,7 +50,14 @@ class DispatchConfigurationComponent(ConfigurationComponent):
         self._controller_wrappers = []
 
     def get_defaults(self):
-        return {"enable_routing_args": False, "disable_request_extensions": False}
+        return {
+            "decode_json_params": False,
+            "enable_routing_args": False,
+            "disable_request_extensions": False,
+        }
+
+    def get_coercion(self):
+        return {"decode_json_params": asbool}
 
     def get_actions(self):
         return (

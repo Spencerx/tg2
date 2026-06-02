@@ -7,6 +7,7 @@ from hashlib import sha1
 
 from webob import Request as WebObRequest
 from webob import Response as WebObResponse
+from webob.exc import HTTPBadRequest
 from webob.request import PATH_SAFE
 
 from .caching import cached_property
@@ -124,7 +125,20 @@ class Request(WebObRequest):
         # This was: dict(((str(n), v) for n,v in self.params.mixed().items()))
         # so that keys were all strings making possible to use them as arguments.
         # Now it seems that all keys are always strings, did WebOb change behavior?
-        return self.params.mixed()
+        params = self.params.mixed()
+        if (
+            self.content_type
+            and self.content_type.lower() == "application/json"
+            and getattr(self, "_decode_json_params", False)
+        ):
+            try:
+                json_body = self.json_body
+            except ValueError:
+                raise HTTPBadRequest("Invalid JSON request body")
+            if not isinstance(json_body, dict):
+                raise HTTPBadRequest("JSON request body must be an object")
+            params.update(json_body)
+        return params
 
     @property
     def quoted_path_info(self):
